@@ -1,0 +1,784 @@
+library(dplyr)
+library(mice)
+library(tidyverse)
+library(ISLR2)
+library(GGally)
+library(caret)
+library(tensorflow)
+library(keras)
+library(xgboost)
+library(optimx)
+library(monmlp)
+library(MASS)
+library(neuralnet)
+#install_keras()
+#install_tensorflow()
+#install_tensorflow_extras()
+
+# Data PreProcessing
+patient_survival <- data
+dim(patient_survival)
+(sum(is.na(patient_survival))/prod(dim(patient_survival)))*100
+missing_sum <- sapply(patient_survival, function(x) sum(is.na(x)))
+missing_per <- missing_sum/(dim(patient_survival)[1])
+drop <- c("X")
+data_cleaned = patient_survival[,!(names(patient_survival) %in% drop)]
+data_cleaned = data_cleaned %>%
+  na_if("") %>%
+  na.omit
+
+missing_sum <- sapply(df, function(x) sum(is.na(x)))
+missing_per <- missing_sum/(dim(df)[1])
+mytable <- table(df$hospital_death)
+slices <- c(83798, 7915)
+lbls <- c("survive", "not survive")
+pct <- round(slices/sum(slices)*100)
+lbls <- paste(lbls, pct)
+lbls <- paste(lbls,"%",sep="")
+pie(slices,labels = lbls,
+   main="Pie Chart of hospital_death")
+
+
+(sum(is.na(patient_survival))/prod(dim(patient_survival)))*100
+missing_sum <- sapply(patient_survival, function(x) sum(is.na(x)))
+missing_per <- missing_sum/(dim(patient_survival)[1])
+drop <- c("X","encounter_id", "patient_id", "hospital_id",
+          "icu_admit_source", "icu_id", "icu_type", "icu_stay_type", 
+          "elective_surgery", "ethnicity", "gender", "gcs_eyes_apache", 
+          "gcs_motor_apache", "gcs_unable_apache", "gcs_verbal_apache",
+          "intubated_apache", "ventilated_apache", "aids", "cirrhosis", 
+          "diabetes_mellitus", "hepatic_failure", "immunosuppression",
+          "leukemia", "lymphoma", "solid_tumor_with_metastasis", "apache_3j_bodysystem",
+          "apache_2_bodysystem", "apache_post_operative", "arf_apache")
+data_cleaned = patient_survival[,!(names(patient_survival) %in% drop)]
+data_cleaned = data_cleaned %>%
+  na_if("") %>%
+  na.omit
+summary(data_cleaned)
+
+# Scatter Plot
+ggpairs(data_cleaned, columns = c(2, 6, 8), mapping=aes(color=factor(hospital_death), pch=factor(hospital_death)), 
+        diag = list(continuous = wrap("densityDiag", alpha = .5)),
+        title = "Pair Plot of hospital_death",
+        legend = 2) +
+        theme_bw() +
+        theme(plot.title = element_text(size = 15, hjust = 0.5))
+library(ggmosaic)
+levels(as.factor(data_cleaned$ethnicity))
+quantile(data_cleaned$hospital_death)
+data_cleaned$ethnicity <- df %>%
+  pull(Personal) %>%
+  cut(labels=c("Caucasian", "Hispanic", "African American", "Asian", "Native American", "Other/Unknown"))
+options(repr.plot.width=7.5, repr.plot.height=5.5)
+ggplot(data = data_cleaned) +
+  geom_mosaic(aes(x = product(ethnicity), fill=hospital_death)) +
+  labs(title='(Ethnicity & Hospital Death)')
+
+mosaic_examp <- ggplot(data = data_cleaned) +
+  geom_mosaic(aes(x = product(ethnicity, gender), fill = ethnicity)) +   
+  labs(y="Ethnicity", x="Gender", title = "Mosaic Plot") 
+  
+
+# LDA and Logistic Regression Implementation
+#Import the data set.
+patientsurvival = read_csv("C:/Users/aimen/Desktop/STATS503/patientsurvival.csv")
+View(patientsurvival)
+
+#remove missing values and set to categorical
+
+patientsurvival=patientsurvival %>%
+  na_if("") %>%
+  na.omit
+#cols <- c("elective_surgery", "ethnicity", "gender", "gcs_eyes_apache", 
+#          "gcs_motor_apache", "gcs_unable_apache", "gcs_verbal_apache",
+#          "intubated_apache", "ventilated_apache", "aids", "cirrhosis", 
+#          "diabetes_mellitus", "hepatic_failure", "immunosuppression",
+#          "leukemia", "lymphoma", "solid_tumor_with_metastasis", "apache_3j_bodysystem",
+#          "apache_2_bodysystem", "hospital_death")
+#patientsurvival[cols] <- lapply(patientsurvival[cols], factor)
+
+#We remove the variable we don't need.
+
+data = subset(patientsurvival, select = -c(hospital_id))
+View(data)
+
+#set chr data into categorical data
+
+data$ethnicity = as.factor(data$ethnicity)
+data$gender = as.factor(data$gender)
+data$apache_3j_bodysystem = as.factor(data$apache_3j_bodysystem)
+data$apache_2_bodysystem = as.factor(data$apache_2_bodysystem)
+data$hospital_death = as.factor(data$hospital_death)
+
+#str(data)
+
+data$elective_surgery = as.factor(data$elective_surgery)
+data$apache_post_operative = as.factor(data$apache_post_operative)
+data$arf_apache = as.factor(data$arf_apache)
+data$gcs_eyes_apache = as.factor(data$gcs_eyes_apache)
+data$gcs_motor_apache  = as.factor(data$gcs_motor_apache)
+data$gcs_verbal_apache = as.factor(data$gcs_verbal_apache)
+data$gintubated_apache = as.factor(data$intubated_apache)
+data$intubated_apache = as.factor(data$intubated_apache)
+data$ventilated_apache = as.factor(data$ventilated_apache)
+data$aids  = as.factor(data$aids )
+data$cirrhosis = as.factor(data$cirrhosis)
+data$hepatic_failure  = as.factor(data$hepatic_failure )
+data$immunosuppression  = as.factor(data$immunosuppression )
+data$leukemia  = as.factor(data$leukemia)
+data$solid_tumor_with_metastasis = as.factor(data$solid_tumor_with_metastasis)
+data$diabetes_mellitus = as.factor(data$diabetes_mellitus)
+data$lymphoma = as.factor(data$lymphoma)
+
+str(data)
+```
+
+
+```{r}
+# We choose 80% of the data as training data and 20% of the data as testing data.
+set.seed(503) 
+data = data %>% mutate(id=row_number()) 
+train = data %>% group_by(hospital_death) %>% sample_frac(0.8) %>% ungroup() 
+test = anti_join(data, train, by = 'id') 
+train = dplyr::select(train, -id) 
+test = dplyr::select(test, -id) 
+```
+
+```{r}
+#We fit a logistic regression model by glm().
+mod_logistic = glm(hospital_death ~ ., data = train, family = binomial) 
+summary(mod_logistic) 
+```
+According to the result, we can see that some of the data shows NA.
+These 7 are not defined because of singularities, which shows that they are correlated.
+Even they are independent variables, but they have high correlation.
+So re try to remove gcs_unable_apache, and apache_2_bodysystem.
+
+```{r}
+boxplot(data$gcs_unable_apache)
+```
+
+```{r}
+# We remove apach_2_body and fit a logistic regression model again.
+#Just repeat what we did above.
+
+data_fix = subset(data, select = -c(gcs_unable_apache, apache_2_bodysystem, gintubated_apache))
+View(data_fix)
+
+set.seed(503) 
+data_fix = data_fix %>% mutate(id=row_number()) 
+train = data_fix %>% group_by(hospital_death) %>% sample_frac(0.8) %>% ungroup() 
+test = anti_join(data, train, by = 'id') 
+train = dplyr::select(train, -id) 
+test = dplyr::select(test, -id) 
+```
+
+```{r}
+#Logistic Model
+mod_logistic = glm(hospital_death ~ ., data = train, family = binomial) 
+summary(mod_logistic) 
+```
+
+```{r}
+toselect.x <- summary(mod_logistic)$coeff[-1,4] < 0.001
+relevant.x <- names(toselect.x)[toselect.x == TRUE] 
+relevant.x
+```
+
+```{r}
+#anova(mod_logistic, test="Chisq")
+```
+
+```{r}
+# Error for test data
+
+pred1 = predict(mod_logistic, test) 
+pred_prob1 = binomial()$linkinv(pred1) 
+pred_label1 = c("0", "1")[as.factor(pred_prob1>0.5)] 
+table(predicted=pred_label1, actual=test$hospital_death) 
+```
+1, and 0 will be the answer of question: do the patient died?
+Here, 0 represent patient do survived, label as "No".
+1 represents that patient do not survived, lable as "Yes".
+The error for test "Yes" is 218/(761 + 218).
+The error for test "No" is 102/(10316 +102).
+Because with the development of technology and science, the accuracy will keep growing.
+
+```{r}
+# The overall test error
+
+mean(pred_label1!=test$hospital_death) 
+```
+The overall test error is just 0.07572168. Not bad.
+
+```{r}
+# train error
+
+pred2 = predict(mod_logistic, train) 
+pred_prob2 = binomial()$linkinv(pred2) 
+pred_label2 = c("0", "1")[as.factor(pred_prob2>0.5)] 
+table(predicted=pred_label2, actual=train$hospital_death)
+```
+As same as above,
+the error for train "Yes" is 2905/(2905 + 1011).
+The error for train "No" is 523/(523 + 41150).
+
+```{r}
+# Overall train error 
+
+mean(pred_label2!=train$hospital_death) 
+```
+The overall train error is also very small, 0.07519358.
+
+```{R}
+# Some plots for the logistic regression model we have made.
+
+plot(mod_logistic)
+```
+
+```{r}
+pred_label2 = as.factor(pred_label2)
+levels(pred_label2)
+train$hospital_death = as.factor(train$hospital_death)
+confusionMatrix(pred_label2, train$hospital_death)
+```
+
+```{r}
+fitted.results = predict(mod_logistic,newdata = data_fix,type='response')
+fitted.results = ifelse(fitted.results > 0.5,1,0)
+misClasificError = mean(fitted.results != test$hospital_death)
+print(paste('Accuracy',1-misClasificError))
+```
+The accuracy is 0.887428491208367 on the test set is quite a good result. 
+
+```{r}
+# ROC curve for logistic regression model using training dataset.
+
+prob3 = predict(mod_logistic, type = c("response"))    
+pred3 = prediction(prob3, train$hospital_death)    
+perf3 = performance(pred3, measure = "tpr", x.measure = "fpr")     
+plot(perf3, col=rainbow(7), main="ROC curve Admissions", xlab="Specificity", ylab="Sensitivity")    
+abline(0, 1)
+```
+
+```{r}
+# Area that is under the ROC curve.
+
+auc = performance(pred3, measure = "auc")
+auc = auc@y.values[[1]]
+auc
+```
+By AUC method, we can also find the accuracy that is 0.8672568. This is not bad.
+
+```{r}
+# We compare our result to LDA method
+
+mod_LDA = lda(hospital_death ~ ., data = train)
+mod_LDA
+```
+Based on the training data set. 
+Around 91.4% belongs to “0” which lable as "No", and around 8.5% belongs to “1” which lable as "Yes". 
+From the result above we have the Coefficients of linear discriminant for each of the 17 variables. 
+
+```{r}
+mod_logistic
+```
+
+```{r}
+plot(mod_LDA)
+```
+
+```{r}
+pred_train_lda = predict(mod_LDA, train)
+mean(pred_train_lda$class != train$hospital_death)
+
+pred_test_lda = predict(mod_LDA, test)
+mean(pred_test_lda$class != test$hospital_death)
+```
+The train error for LDA is 0.0799535, and test error is 0.08309204.
+
+```{r}
+table(predicted=pred_test_lda$class, actual=test$hospital_death)
+```
+
+```{r}
+table(predicted=pred_train_lda$class, actual=train$hospital_death)
+```
+As same as what we did in logistic regression.
+The error for test "Yes" is 651/(651 + 328).
+The error for test "No" is 296/(296 + 10122).
+The error for train "Yes" is 2484/(2484 + 1432).
+The error for train "No" is 1161/(1161 + 40512).
+
+```{r}
+levels(pred_train_lda$class)
+pred_train_lda$hospital_death = as.factor(pred_train_lda$hospital_death)
+train$hospital_death = as.factor(train$hospital_death)
+confusionMatrix(pred_train_lda$class, train$hospital_death)
+```
+
+```{r}
+projection = data.frame(ld1=pred_test_lda$x[,1], class=test$hospital_death)
+projection_lda = data.frame(ld1 = pred_test_lda$x[,1], class = pred_test_lda$class)
+projection_logistic = data.frame(ld1 = pred_test_lda$x[,1], class = pred_label1)
+
+ggplot(projection_lda, aes(x = ld1, fill = class, colour = class)) +
+ geom_histogram(alpha = 0.5, position = "identity") + ggtitle("LDA classes")
+
+ggplot(projection_logistic, aes(x = ld1, fill = class, colour = class)) +
+ geom_histogram(alpha = 0.5, position = "identity") + ggtitle("Logistic classes")
+```
+```{r}
+plot(mod_LDA)
+```
+```{r}
+ggplot(test) + 
+  geom_point(aes(x=age, y=pre_icu_los_days , color=as.factor(hospital_death), shape=pred_test_lda$class)) + ggtitle("LDA classes") +
+  theme_bw()
+
+ggplot(test) + 
+  geom_point(aes(x=age, y=pre_icu_los_days , color=as.factor(hospital_death), shape=pred_label1)) + ggtitle("Logistic classes") +
+  theme_bw()
+```
+
+
+# Random Forest and AdaBoost
+#Import the data set.
+patientsurvival = read_csv("F:/umich/2022ss/503/project/patientsurvival.csv")
+View(patientsurvival)
+
+#remove missing values and set to categorical
+
+patientsurvival=patientsurvival %>%
+  na_if("") %>%
+  na.omit
+#cols <- c("elective_surgery", "ethnicity", "gender", "gcs_eyes_apache", 
+#          "gcs_motor_apache", "gcs_unable_apache", "gcs_verbal_apache",
+#          "intubated_apache", "ventilated_apache", "aids", "cirrhosis", 
+#          "diabetes_mellitus", "hepatic_failure", "immunosuppression",
+#          "leukemia", "lymphoma", "solid_tumor_with_metastasis", "apache_3j_bodysystem",
+#          "apache_2_bodysystem", "hospital_death")
+#patientsurvival[cols] <- lapply(patientsurvival[cols], factor)
+
+#We remove the variable we don't need.
+
+data = subset(patientsurvival, select = -c(hospital_id))
+
+#set chr data into categorical data
+
+data$ethnicity = as.factor(data$ethnicity)
+data$gender = as.factor(data$gender)
+data$apache_3j_bodysystem = as.factor(data$apache_3j_bodysystem)
+data$apache_2_bodysystem = as.factor(data$apache_2_bodysystem)
+data$hospital_death = as.factor(data$hospital_death)
+
+#str(data)
+
+data$elective_surgery = as.factor(data$elective_surgery)
+data$apache_post_operative = as.factor(data$apache_post_operative)
+data$arf_apache = as.factor(data$arf_apache)
+data$gcs_eyes_apache = as.factor(data$gcs_eyes_apache)
+data$gcs_motor_apache  = as.factor(data$gcs_motor_apache)
+data$gcs_verbal_apache = as.factor(data$gcs_verbal_apache)
+data$gintubated_apache = as.factor(data$intubated_apache)
+data$intubated_apache = as.factor(data$intubated_apache)
+data$ventilated_apache = as.factor(data$ventilated_apache)
+data$aids  = as.factor(data$aids )
+data$cirrhosis = as.factor(data$cirrhosis)
+data$hepatic_failure  = as.factor(data$hepatic_failure )
+data$immunosuppression  = as.factor(data$immunosuppression )
+data$leukemia  = as.factor(data$leukemia)
+data$solid_tumor_with_metastasis = as.factor(data$solid_tumor_with_metastasis)
+data$diabetes_mellitus = as.factor(data$diabetes_mellitus)
+data$lymphoma = as.factor(data$lymphoma)
+
+str(data)
+```
+
+
+
+
+```{r}
+# We choose 80% of the data as training data and 20% of the data as testing data.
+set.seed(503) 
+data = data %>% mutate(id=row_number()) 
+train = data %>% group_by(hospital_death) %>% sample_frac(0.8) %>% ungroup() 
+test = anti_join(data, train, by = 'id') 
+train = dplyr::select(train, -id) 
+test = dplyr::select(test, -id) 
+```
+
+```{r}
+train_yes = train[train$hospital_death == '0',]
+train_no = train[train$hospital_death == '1',]
+test_yes = test[test$hospital_death == '0',]
+test_no = test[test$hospital_death == '1',]
+```
+
+```{r}
+set.seed(503)
+train = train[sample(nrow(train), nrow(train)*0.1), ]
+test = test[sample(nrow(test), nrow(test)*0.1), ]
+```
+
+## Choose the optimal tree
+```{r}
+tree1 = rpart(hospital_death ~ ., train, parms = list(split = "gini"), method = "class", cp = 0)
+fancyRpartPlot(tree1)
+
+tree.gini = rpart(hospital_death ~ ., train, parms = list(split = "gini"), method = "class")
+plotcp(tree.gini)
+```
+
+```{r}
+tree.updated = rpart(hospital_death ~ ., train, parms = list(split = "gini"), method = "class", cp = 0.01)
+plot(tree.updated)
+text(tree.updated, pretty = 0)
+fancyRpartPlot(tree.updated)
+```
+
+## random forest
+```{r}
+# varying mtry
+set.seed(1)
+death.rf <- randomForest(hospital_death ~ ., 
+                        data = train, 
+                        mtry = floor(sqrt(16)),
+                        importance = TRUE,
+                        proximity = TRUE)
+death.rf
+# overall
+rf_train_pred = predict(death.rf, newdata = train)
+rf_train_err = mean(rf_train_pred!=train$hospital_death)
+rf_train_err
+
+
+death.rf <- randomForest(hospital_death ~ ., 
+                        data = train, 
+                        mtry = floor(sqrt(50)),
+                        importance = TRUE,
+                        proximity = TRUE)
+death.rf
+```
+
+```{r}
+# varying mtry
+set.seed(1)
+death.rf <- randomForest(hospital_death ~ ., 
+                        data = train, 
+                        mtry = floor(sqrt(16)),
+                        importance = TRUE,
+                        proximity = TRUE)
+death.rf
+# overall
+rf_test_pred = predict(death.rf, newdata = test)
+rf_test_err = mean(rf_test_pred!=test$hospital_death)
+rf_test_err
+
+
+death.rf <- randomForest(hospital_death ~ ., 
+                        data = train, 
+                        mtry = floor(sqrt(50)),
+                        importance = TRUE,
+                        proximity = TRUE)
+death.rf
+# overall
+rf_test_pred = predict(death.rf, newdata = test)
+rf_test_err = mean(rf_test_pred!=test$hospital_death)
+rf_test_err
+
+death.rf <- randomForest(hospital_death ~ ., 
+                        data = train, 
+                        mtry = floor(sqrt(70)),
+                        importance = TRUE,
+                        proximity = TRUE)
+death.rf
+# overall
+rf_test_pred = predict(death.rf, newdata = test)
+rf_test_err = mean(rf_test_pred!=test$hospital_death)
+rf_test_err
+```
+
+```{r}
+# varying nodesize
+set.seed(1)
+death.rf <- randomForest(hospital_death ~ ., 
+                        data = train, 
+                        mtry = floor(sqrt(16)),
+                        nodesize = 5,
+                        importance = TRUE,
+                        proximity = TRUE)
+death.rf
+# overall
+rf_test_pred = predict(death.rf, newdata = test)
+rf_test_err = mean(rf_test_pred!=test$hospital_death)
+rf_test_err
+
+set.seed(1)
+death.rf <- randomForest(hospital_death ~ ., 
+                        data = train, 
+                        mtry = floor(sqrt(16)),
+                        nodesize = 10,
+                        importance = TRUE,
+                        proximity = TRUE)
+death.rf
+# overall
+rf_test_pred = predict(death.rf, newdata = test)
+rf_test_err = mean(rf_test_pred!=test$hospital_death)
+rf_test_err
+
+set.seed(1)
+death.rf <- randomForest(hospital_death ~ ., 
+                        data = train, 
+                        mtry = floor(sqrt(16)),
+                        nodesize = 20,
+                        importance = TRUE,
+                        proximity = TRUE)
+death.rf
+# overall
+rf_test_pred = predict(death.rf, newdata = test)
+rf_test_err = mean(rf_test_pred!=test$hospital_death)
+rf_test_err
+```
+
+```{r}
+# varying ntree
+set.seed(1)
+death.rf <- randomForest(hospital_death ~ ., 
+                        data = train, 
+                        ntree = 200,
+                        mtry = floor(sqrt(16)),
+                        importance = TRUE,
+                        proximity = TRUE)
+death.rf
+# overall
+rf_test_pred = predict(death.rf, newdata = test)
+rf_test_err = mean(rf_test_pred!=test$hospital_death)
+rf_test_err
+
+
+
+```
+```{r}
+set.seed(1)
+death.rf <- randomForest(hospital_death ~ ., 
+                        data = train, 
+                        ntree = 800,
+                        mtry = floor(sqrt(16)),
+                        importance = TRUE,
+                        proximity = TRUE)
+death.rf
+# overall
+rf_test_pred = predict(death.rf, newdata = test)
+rf_test_err = mean(rf_test_pred!=test$hospital_death)
+rf_test_err
+
+```
+```{r}
+##mean decreasing graph
+varImpPlot(death.rf, n.var=16, type=1)
+
+```
+
+```{r}
+trControl <- trainControl(method = "cv",
+    number = 10,
+    search = "grid")
+
+rf_default <- train(hospital_death~.,
+    data = train,
+    method = "rf",
+    metric = "Accuracy",
+    trControl = trControl)
+# Print the results
+print(rf_default)
+```
+
+
+## Adaboost
+```{r}
+
+data2 = subset(patientsurvival, select = -c(hospital_id,bmi,weight,apache_3j_bodysystem,apache_2_bodysystem,gcs_unable_apache))
+
+# We choose 80% of the data as training data and 20% of the data as testing data.
+set.seed(503) 
+data2 = data2 %>% mutate(id=row_number()) 
+train2 = data2 %>% group_by(hospital_death) %>% sample_frac(0.8) %>% ungroup() 
+test2 = anti_join(data2, train2, by = 'id') 
+train2 = dplyr::select(train2, -id) 
+test2 = dplyr::select(test2, -id) 
+
+set.seed(503)
+train2 = train2[sample(nrow(train2), nrow(train2)*0.1), ]
+test2 = test2[sample(nrow(test2), nrow(test2)*0.1), ]
+
+boostTrain = train2 %>% mutate(across(.cols = c(2:5, 7:9, 11, 16, 17), .fns = as.factor), hospital_death= if_else(hospital_death == 1, 1, 0))
+boostTest = test2 %>% mutate(across(.cols = c(2:5, 7:9, 11, 16, 17), .fns = as.factor), hospital_death= if_else(hospital_death == 1, 1, 0))
+
+# fit the Adaboost model on the training sample
+set.seed(1)
+ada_deposit <- gbm(hospital_death~., data = boostTrain, distribution = "adaboost", n.trees = 5000,
+               interaction.depth = 3, shrinkage = 0.1)
+
+```
+
+
+```{r}
+summary(ada_deposit)
+```
+```{r}
+ada_pred_response <- predict(ada_deposit, newdata = test2, n.trees = 5000, 
+                            type = "response")
+ada_pred <- ifelse(ada_pred_response>0.5,1,0)
+ada_err <- mean(ada_pred!=test2$hospital_death)
+ada_err
+```
+
+```{r}
+yes.tr = boostTrain[boostTrain$hospital_death == 1,]
+no.tr = boostTrain[boostTrain$hospital_death == 0,]
+yes.te = boostTrain[boostTest$hospital_death == 1,]
+no.te = boostTrain[boostTest$hospital_death == 0,]
+yes.tr.pred =ifelse(predict(ada_deposit, newdata = yes.tr, n.trees = 5000, 
+                            type = "response")>0.5,1,0)
+yes.te.pred =ifelse(predict(ada_deposit, newdata = yes.te, n.trees = 5000, 
+                            type = "response")>0.5,1,0)
+no.tr.pred =ifelse(predict(ada_deposit, newdata = no.tr, n.trees = 5000, 
+                            type = "response")>0.5,1,0)
+no.te.pred =ifelse(predict(ada_deposit, newdata = no.te, n.trees = 5000, 
+                            type = "response")>0.5,1,0)
+
+ada_pred_trv <- ifelse(predict(ada_deposit, newdata = boostTrain, n.trees = 5000, 
+                            type = "response")>0.5,1,0)
+ada_err_tr <- mean(ada_pred_trv!=boostTrain$hospital_death)
+ada_err_tr
+
+ada_pred_tev <- ifelse(predict(ada_deposit, newdata = boostTest, n.trees = 5000, 
+                            type = "response")>0.5,1,0)
+ada_err_te <- mean(ada_pred_tev!=boostTest$hospital_death)
+ada_err_te
+
+# deposit = yes
+train.yes = mean(yes.tr.pred != yes.tr$hospital_death)
+test.yes = mean(yes.te.pred != yes.te$hospital_death)
+train.yes
+test.yes
+# deposit = no
+train.no = mean(no.tr.pred != no.tr$hospital_death)
+test.no = mean(no.te.pred != no.te$hospital_death)
+train.no
+test.no
+
+error <- matrix(c(ada_err_tr, ada_err_te,
+                  train.yes, test.yes,
+                  train.no, test.no), ncol = 2, byrow = TRUE)
+colnames(error)<-c("train err", "test err")
+rownames(error)<-c("overall", "class - yes", "class - no")
+as.table(error)
+```
+```{r}
+set.seed(1)
+ada_deposit <- gbm(hospital_death~., data = boostTrain, distribution = "adaboost", n.trees = 5000,
+               interaction.depth = 3, shrinkage = 0.8)
+
+yes.tr = boostTrain[boostTrain$hospital_death == 1,]
+no.tr = boostTrain[boostTrain$hospital_death == 0,]
+yes.te = boostTest[boostTest$hospital_death == 1,]
+no.te = boostTest[boostTest$hospital_death == 0,]
+yes.tr.pred =ifelse(predict(ada_deposit, newdata = yes.tr, n.trees = 5000, 
+                            type = "response")>0.5,1,0)
+yes.te.pred =ifelse(predict(ada_deposit, newdata = yes.te, n.trees = 5000, 
+                            type = "response")>0.5,1,0)
+no.tr.pred =ifelse(predict(ada_deposit, newdata = no.tr, n.trees = 5000, 
+                            type = "response")>0.5,1,0)
+no.te.pred =ifelse(predict(ada_deposit, newdata = no.te, n.trees = 5000, 
+                            type = "response")>0.5,1,0)
+
+ada_pred_trv <- ifelse(predict(ada_deposit, newdata = boostTrain, n.trees = 5000, 
+                            type = "response")>0.5,1,0)
+ada_err_tr <- mean(ada_pred_trv!=boostTrain$hospital_death)
+ada_err_tr
+
+ada_pred_tev <- ifelse(predict(ada_deposit, newdata = boostTest, n.trees = 5000, 
+                            type = "response")>0.5,1,0)
+ada_err_te <- mean(ada_pred_tev!=boostTest$hospital_death)
+ada_err_te
+
+# deposit = yes
+train.yes = mean(yes.tr.pred != yes.tr$hospital_death)
+test.yes = mean(yes.te.pred != yes.te$hospital_death)
+train.yes
+test.yes
+# deposit = no
+train.no = mean(no.tr.pred != no.tr$hospital_death)
+test.no = mean(no.te.pred != no.te$hospital_death)
+train.no
+test.no
+
+error <- matrix(c(ada_err_tr, ada_err_te,
+                  train.yes, test.yes,
+                  train.no, test.no), ncol = 2, byrow = TRUE)
+colnames(error)<-c("train err", "test err")
+rownames(error)<-c("overall", "class - yes", "class - no")
+as.table(error)
+
+# MLP
+library(tensorflow)
+library(tidyverse)
+library(keras)
+install.packages("remotes")
+remotes::install_github(paste0("rstudio/", c("reticulate", "tensorflow", "keras")))
+reticulate::install_miniconda() 
+keras::install_keras()
+```
+
+
+```{r}
+patient_survival <- data
+dim(patient_survival)
+(sum(is.na(patient_survival))/prod(dim(patient_survival)))*100
+missing_sum <- sapply(patient_survival, function(x) sum(is.na(x)))
+missing_per <- missing_sum/(dim(patient_survival)[1])
+drop <- c("X","encounter_id", "patient_id", "hospital_id",
+          "icu_admit_source", "icu_id", "icu_type", "icu_stay_type", 
+          "elective_surgery", "ethnicity", "gender", "gcs_eyes_apache", 
+          "gcs_motor_apache", "gcs_unable_apache", "gcs_verbal_apache",
+          "intubated_apache", "ventilated_apache", "aids", "cirrhosis", 
+          "diabetes_mellitus", "hepatic_failure", "immunosuppression",
+          "leukemia", "lymphoma", "solid_tumor_with_metastasis", "apache_3j_bodysystem",
+          "apache_2_bodysystem", "apache_post_operative", "arf_apache")
+data_cleaned = patient_survival[,!(names(patient_survival) %in% drop)]
+data_cleaned = data_cleaned %>%
+  na_if("") %>%
+  na.omit
+
+data_cleaned <- as.matrix(data_cleaned)
+dimnames(data_cleaned) <- NULL
+data_cleaned[, 1:55] <- normalize(data_cleaned[, 1:55])
+data_cleaned[, 56] <- as.numeric(data_cleaned[, 56]) 
+set.seed(33)
+ind <- sample(2, nrow(data_cleaned), replace = T, prob = c(0.8, 0.2))
+train <- data_cleaned[ind == 1, 1:55]
+test <- data_cleaned[ind == 2, 1:55]
+train_y <- data_cleaned[ind == 1, 56]
+test_y <- data_cleaned[ind == 2, 56]
+#m = colMeans(train)
+#s = apply(train, 2, sd)
+#train = scale(train, center = m, scale = s)
+#test = scale(test, center = m, scale = s)
+
+train_Y <- to_categorical(train_y)
+test_Y <- to_categorical(test_y)
+
+model_MLP <- keras_model_sequential()
+model_MLP %>%
+  layer_dense(units = 128, activation = 'relu', input_shape = c(55)) %>%
+  layer_dense(units = 2, activation = 'sigmoid')
+
+model_MLP %>% compile(
+  optimizer = 'adam', 
+  loss = 'binary_crossentropy',
+  metrics = c('accuracy')
+)
+
+MLP.history = model_MLP %>% fit(train, train_Y, epoch = 30, batch_size = 32, validation_split = 0.2)
